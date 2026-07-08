@@ -1,11 +1,30 @@
+from pydantic import BaseModel
 from langchain.agents import create_agent
-import zapros
-import custom_llm
+from rag import search_documents
+from custom_llm import my_chatbot
+from langchain.agents.structured_output import ToolStrategy
 
-agent = create_agent(model = zapros.my_chatbot, 
-                     tools = [zapros.search_documents],
-                     system_prompt = custom_llm.payload["messages"][0]["content"])
+class Answer(BaseModel):
+    summary: str
+    confidence: float
 
-def agent_responses():
-    reply = agent.invoke({"messages": custom_llm.payload["messages"]})
-    return reply
+agent = create_agent(
+    model=my_chatbot,
+    tools=[search_documents],
+    response_format=Answer,
+)
+
+def agent_responses(question):
+    result = agent.invoke({"messages": [
+            {
+                "role": "user", 
+                "content": question
+            }
+        ]})
+
+    if "structured_response" in result:
+        #return the structured response from the model
+        return result["structured_response"].summary 
+    else:
+        #model replied in plain text instead of using the structured tool
+        return result["messages"][-1].content
