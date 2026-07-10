@@ -3,6 +3,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.tools import tool
+from functools import lru_cache
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,7 +17,6 @@ embedding = GoogleGenerativeAIEmbeddings(
         model = "gemini-embedding-2-preview",
         google_api_key = GEMINI_API
     )
-
 
 #create a vectorstore from the documents in the resource folder
 def create_vectorstore(resource_folder=resource_folder, persist_directory=persist_directory):
@@ -45,7 +45,6 @@ def create_vectorstore(resource_folder=resource_folder, persist_directory=persis
         persist_directory = persist_directory
     )
 
-
 if not os.path.exists(persist_directory) or not os.listdir(persist_directory):
     create_vectorstore()
 else:
@@ -54,8 +53,8 @@ else:
         embedding_function=embedding,
     )
 
-
 @tool
+@lru_cache(maxsize=10)
 def search_documents(question, resource_folder = resource_folder):
     ''' 
     This function searches for the most relevant information in 
