@@ -1,7 +1,7 @@
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain.tools import tool
 from functools import lru_cache
 import os
@@ -9,14 +9,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API = os.getenv("GEMINI_API")
+EMBEDDER = os.getenv("EMBEDDER")
+EMBED_URL = os.getenv("EMBED_URL")
 
 resource_folder = "RAG Files"
 persist_directory = "RAG Files/chrome/"
 
+'''
 embedding = GoogleGenerativeAIEmbeddings(
         model = "gemini-embedding-2-preview",
         google_api_key = GEMINI_API
     )
+'''
+
+embedding = OpenAIEmbeddings(
+    model = "text-1024",
+    api_key = EMBEDDER,
+    base_url = EMBED_URL
+)
 
 #create a vectorstore from the documents in the resource folder
 def create_vectorstore(resource_folder=resource_folder, persist_directory=persist_directory):
