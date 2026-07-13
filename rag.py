@@ -45,7 +45,6 @@ def load_chunks(path=chunks_json):
     return result
 
 @tool
-@lru_cache(maxsize=10)
 def search_documents(question, resource_folder = resource_folder):
     ''' 
     This function searches for the most relevant information in 

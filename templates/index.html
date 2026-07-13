@@ -335,10 +335,38 @@
 <script>
 let currentModel = "gpt-oss";
 
+// One message array per model, e.g. { "gpt-oss": [{role:"user", text:"hi"}, ...], ... }
+// In-memory only — resets on every page refresh, matching backend restarts during dev.
+let chatHistories = {};
+
 const chat = document.getElementById("chat");
 const emptyState = document.getElementById("empty-state");
 const activeLabel = document.getElementById("active-model-label");
 const modelItems = document.querySelectorAll(".model-item");
+
+function getHistory(model){
+  if(!chatHistories[model]) chatHistories[model] = [];
+  return chatHistories[model];
+}
+
+function renderHistory(model){
+  chat.innerHTML = "";
+  const history = getHistory(model);
+
+  if(history.length === 0){
+    const note = document.createElement("div");
+    note.className = "empty-state";
+    note.id = "empty-state";
+    note.textContent = "no messages yet — say hi";
+    chat.appendChild(note);
+    return;
+  }
+
+  history.forEach(entry => {
+    renderMessage(entry.role, entry.text);
+  });
+  chat.scrollTop = chat.scrollHeight;
+}
 
 function setActiveModel(model){
   if(model === currentModel) return;
@@ -350,12 +378,8 @@ function setActiveModel(model){
 
   activeLabel.textContent = model;
 
-  // clear chat on model switch
-  chat.innerHTML = "";
-  const note = document.createElement("div");
-  note.className = "system-note";
-  note.textContent = `switched to ${model} — chat cleared`;
-  chat.appendChild(note);
+  // show that model's own history instead of wiping it
+  renderHistory(model);
 }
 
 modelItems.forEach(item => {
@@ -363,9 +387,12 @@ modelItems.forEach(item => {
 });
 // mark initial active model
 document.querySelector(`.model-item[data-model="${currentModel}"]`).classList.add("active");
+renderHistory(currentModel);
 
-function appendMessage(role, text){
-  if(emptyState) emptyState.remove();
+// Renders a message bubble without touching history storage (used for replay)
+function renderMessage(role, text){
+  const currentEmpty = document.getElementById("empty-state");
+  if(currentEmpty) currentEmpty.remove();
   const msg = document.createElement("div");
   msg.className = `msg ${role}`;
   msg.innerHTML = `
@@ -378,10 +405,32 @@ function appendMessage(role, text){
   return msg;
 }
 
+// Renders a message AND records it into the current model's history
+function appendMessage(role, text){
+  const msg = renderMessage(role, text);
+  getHistory(currentModel).push({ role, text });
+  return msg;
+}
+
+let isSending = false; // hard guard: makes double-fire structurally impossible
+
 async function send(){
+  console.log("[send] called", new Error().stack); // DEBUG — remove once confirmed fixed
+
+  if(isSending){
+    console.log("[send] blocked — a request is already in flight");
+    return;
+  }
+
   const input = document.getElementById("message");
   const text = input.value.trim();
   if(text === "") return;
+
+  isSending = true;
+  const sendBtn = document.querySelector("button.send");
+  if(sendBtn) sendBtn.disabled = true;
+
+  const activeModelAtSend = currentModel; // guard against a model switch mid-request
 
   appendMessage("user", text);
   input.value = "";
@@ -392,18 +441,31 @@ async function send(){
     const response = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, model: currentModel })
+      body: JSON.stringify({ message: text, model: activeModelAtSend })
     });
     const data = await response.json();
+
     thinking.querySelector(".bubble").textContent = data.reply;
+    // update the stored copy of that placeholder message too
+    const history = getHistory(activeModelAtSend);
+    const last = history[history.length - 1];
+    if(last && last.role === "assistant") last.text = data.reply;
   } catch(err){
-    thinking.querySelector(".bubble").textContent = "Error: could not reach server.";
+    const errText = "Error: could not reach server.";
+    thinking.querySelector(".bubble").textContent = errText;
+    const history = getHistory(activeModelAtSend);
+    const last = history[history.length - 1];
+    if(last && last.role === "assistant") last.text = errText;
+  } finally {
+    isSending = false;
+    if(sendBtn) sendBtn.disabled = false;
   }
   chat.scrollTop = chat.scrollHeight;
 }
 
 document.getElementById("message").addEventListener("keypress", function(event){
   if(event.key === "Enter"){
+    event.preventDefault(); // stop any default form-like behavior just in case
     send();
   }
 });
