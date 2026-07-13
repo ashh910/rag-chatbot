@@ -1,3 +1,4 @@
 .env
 __pycache__/
 RAG Files/chrome
+experimenting.py

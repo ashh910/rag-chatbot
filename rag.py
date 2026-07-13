@@ -1,9 +1,12 @@
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.tools import tool
 from functools import lru_cache
+import requests
+import json
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,16 +14,11 @@ load_dotenv()
 GEMINI_API = os.getenv("GEMINI_API")
 EMBEDDER = os.getenv("EMBEDDER")
 EMBED_URL = os.getenv("EMBED_URL")
+RERANKER_API = os.getenv("RERANKER_API")
+RERANKER_URL = os.getenv("RERANKER_URL")
 
 resource_folder = "RAG Files"
 persist_directory = "RAG Files/chrome/"
-
-'''
-embedding = GoogleGenerativeAIEmbeddings(
-        model = "gemini-embedding-2-preview",
-        google_api_key = GEMINI_API
-    )
-'''
 
 embedding = OpenAIEmbeddings(
     model = "text-1024",
@@ -28,40 +26,23 @@ embedding = OpenAIEmbeddings(
     base_url = EMBED_URL
 )
 
-#create a vectorstore from the documents in the resource folder
-def create_vectorstore(resource_folder=resource_folder, persist_directory=persist_directory):
-    resources = []
+chunks_json = os.path.join(resource_folder, "splitted_chunks.json")
 
-    #load all text files from the resource folder
-    for filename in os.listdir(resource_folder):
-        if filename.endswith(".txt"):
-            file_path = os.path.join(resource_folder, filename)
-            loader = TextLoader(file_path, encoding="utf-8")
-            resources.extend(loader.load())
+def save_chunks(chunks, path=chunks_json):
+    chunks_list = []
+    for chunk in chunks:
+        chunks_list.append({"metadata": chunk.metadata, 
+                        "page_content": chunk.page_content})
+    with open(path, "w") as saving_chunks:
+        json.dump(chunks_list, saving_chunks)
 
-    #split the documents into chunks
-    text_splitter = RecursiveCharacterTextSplitter(
-        separators = [" ", "\n", "\n\n", "\t", ",", ".", "!", "?", ";", ":"],
-        chunk_size = 300,
-        chunk_overlap = 50,
-        length_function = len
-    )
-    chunks = text_splitter.split_documents(resources)
-
-    #create a vectorstore from the chunks and store it in the persist directory
-    vectordb = Chroma.from_documents(
-        documents = chunks,
-        embedding = embedding,
-        persist_directory = persist_directory
-    )
-
-if not os.path.exists(persist_directory) or not os.listdir(persist_directory):
-    create_vectorstore()
-else:
-    vectordb = Chroma(
-        persist_directory=persist_directory,
-        embedding_function=embedding,
-    )
+def load_chunks(path=chunks_json):
+    with open(path, "r") as reading_chunks:
+        datas = json.load(reading_chunks)
+    result = []
+    for data in datas:
+        result.append(Document(page_content=data["page_content"], metadata=data["metadata"]))
+    return result
 
 @tool
 @lru_cache(maxsize=10)
@@ -77,13 +58,31 @@ def search_documents(question, resource_folder = resource_folder):
 
     Run this once (or whenever documents change) — not on every query.
     '''
+    chunks = load_chunks()
+    documents_text = []
+    for chunk in chunks:
+        documents_text.append(chunk.page_content)
 
     #search for the most relevant chunks based on the question
-    relevant_chunks = vectordb.max_marginal_relevance_search(
-        question,
-        k=2,
-        fetch_k=3
-    )
+    reranker = {
+        "model": "reranker",
+        "query": question,
+        "documents": documents_text,
+        "top_n": 3,
+    }
 
-    #return the relevant chunks to be used by the LLM for generating a response
-    return relevant_chunks
+    try:
+        resp = requests.post(
+            RERANKER_URL,
+            headers={
+                "Authorization": f"Bearer {RERANKER_API}",
+                "Content-Type": "application/json",
+            },
+            json=reranker,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        relevant_chunks = resp.json()
+        return relevant_chunks["results"]
+    except requests.RequestException as e:
+        print(f"Request failed: {e}\nBody: {resp.text if 'resp' in locals() else ''}")
