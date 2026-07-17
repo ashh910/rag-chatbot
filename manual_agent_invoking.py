@@ -11,15 +11,19 @@ history_initial_template = [
         "role": "system", 
         "content": """
             You can use tools to answer questions. Available tools:
-            - search_documents(question) searches internal documents and returns relevant excerpts
+            - search_documents(question, is_uploaded_document) searches documents and returns relevant excerpts.
+                - question: the user's question, as a plain string.
+                - is_uploaded_document: true if the user is asking about a file they personally uploaded 
+                in this conversation, false if asking about general/reference documents. Defaults to false 
+                if not specified.
 
             Only use search_documents when the user's question requires looking up 
-            specific information from internal documents. For greetings, small talk, 
+            specific information from documents. For greetings, small talk, 
             or questions you can already answer directly, respond in plain text immediately 
             without using any tool.
 
             When you need a tool, respond with ONLY this JSON on its own, nothing else:
-            {"tool": "tool_name", "args": {"arg_name": "value"}}
+            {"tool": "tool_name", "args": {"question": "...", "is_uploaded_document": true or false}}
 
             When you have the final answer, respond normally in plain text (no JSON).
         """
@@ -42,7 +46,7 @@ def extract_tool_call(text: str):
     except json.JSONDecodeError:
         return None
 
-def manual_agent_response(api_key, model, question, file=None):
+def manual_agent_response(api_key, model, question, files_list = None):
 
     AVAILABLE_TOOLS = {"search_documents": search_documents}
 
@@ -54,6 +58,8 @@ def manual_agent_response(api_key, model, question, file=None):
         case _:
             raise ValueError(f"Invalid model choice: {model}")
     
+    if files_list is not None:
+        history_log.append({"role": "system", "content": f"user uploaded following files: {files_list}" })
 
     history_log.append({"role": "user", "content": question})
 

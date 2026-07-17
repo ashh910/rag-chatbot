@@ -26,6 +26,8 @@ def home():
 @app.route("/chat", methods=["POST"])
 def chat():
 
+    is_file_uploaded = False
+
     if request.is_json:
         question = request.json.get("message", "")
         model_choice = request.json.get("model", "gpt-oss")
@@ -53,6 +55,7 @@ def chat():
                 print(f'"{file.filename}" was uploaded.') 
         add_uploaded_documents_to_vectorstore(accepted_files)
 
+        is_file_uploaded = True
         #ensures only allowed file formats are inputted, otherwise, skips.
    
 
@@ -83,12 +86,12 @@ def chat():
 
     try:
         if manual_agent:
-            reply = manual_agent_response(api_key, model_choice, question, file)
+            reply = manual_agent_response(api_key, model_choice, question, accepted_files)
         else:
-            reply = agent_response(api_key, model_choice, question, file)
+            reply = agent_response(api_key, model_choice, question, accepted_files)
     except Exception as e:
         reply = str(e)
-
+    
     return jsonify({"reply": reply})
 
 if __name__ == "__main__":

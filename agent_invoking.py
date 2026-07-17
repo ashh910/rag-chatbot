@@ -39,7 +39,7 @@ def get_chatbot(model_choice="gpt-oss", api_key=GPT_OSS_API_KEY, URL=URL):
         )
 
 
-def agent_response(api_key, model_choice, question, file=None):
+def agent_response(api_key, model_choice, question, files_list=None):
     match model_choice: 
         case "gpt-oss":
             checkpointer = gpt_oss_checkpointer
@@ -58,12 +58,21 @@ def agent_response(api_key, model_choice, question, file=None):
         checkpointer=checkpointer
     )
 
-    result = agent.invoke({"messages": [
+    if files_list is not None:
+        result = agent.invoke({"messages": [
+            {
+                "role": "user", 
+                "content": f"user uploaded following files: {files_list}, user's question: {question}"
+            }
+        ]}, thread_config,)
+    else:
+        result = agent.invoke({"messages": [
             {
                 "role": "user", 
                 "content": question
             }
         ]}, thread_config,)
+    
 
     prior_state = agent.get_state(thread_config)
     prior_messages = prior_state.values.get("messages", []) if prior_state.values else []

@@ -106,18 +106,24 @@ else:
 @lru_cache(maxsize=10) 
 def search_documents(question, is_uploaded_document=False):
     ''' 
-    This function searches for the most relevant information in 
-    the documents stored in the preupload folder based on the 
-    user's question. It loads all text files, splits them into 
-    chunks, creates embeddings, and performs a search to find 
-    the most relevant chunks. The relevant information is then 
-    appended to the payload for the LLM to use in generating 
-    a response.
+    You have access to a search_documents tool that searches documents and returns relevant excerpts.
 
-    Run this once (or whenever documents change) — not on every query.
+    Only call search_documents when the user's question requires looking up 
+    specific information from documents. For greetings, small talk, 
+    or questions you can already answer directly, respond in plain text 
+    without calling any tool.
+
+    search_documents takes two arguments:
+    - question: the user's question, as a plain string.
+    - is_uploaded_document: true if the user is asking about a file they personally 
+      uploaded in this conversation, false if asking about general/reference documents.
     '''
+    if is_uploaded_document:
+        vectordb = upload_vectordb
+    else:
+        vectordb = preupload_vectordb
 
-    similar_chunks_pool = preupload_vectordb.similarity_search(question, k=20)
+    similar_chunks_pool = vectordb.similarity_search(question, k=20)
     chunks_content = []
     for chunk in similar_chunks_pool:
         chunks_content.append(chunk.page_content)
