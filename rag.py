@@ -1,13 +1,11 @@
 from langchain_community.document_loaders import TextLoader
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma, InMemoryVectorStore
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.tools import tool
 from functools import lru_cache
-import requests
-import json
-import os
+import requests, json, os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -17,8 +15,17 @@ EMBED_URL = os.getenv("EMBED_URL")
 RERANKER_API = os.getenv("RERANKER_API")
 RERANKER_URL = os.getenv("RERANKER_URL")
 
-resource_folder = "RAG Files"
-persist_directory = "RAG Files/chrome/"
+preupload_persist_directory = "RAG Files/preuploaded files/chrome/"
+preupload_folder = "RAG Files/preuploaded files/"
+
+upload_folder = "RAG Files/uploaded files/"
+for document in os.listdir(upload_folder):
+    path = os.path.join(upload_folder, document)
+    os.remove(path)
+
+
+allowed_file_formats = [".txt"]
+
 
 embedding = OpenAIEmbeddings(
     model = "text-1024",
@@ -26,29 +33,81 @@ embedding = OpenAIEmbeddings(
     base_url = EMBED_URL
 )
 
-chunks_json = os.path.join(resource_folder, "splitted_chunks.json")
 
-def save_chunks(chunks, path=chunks_json):
-    chunks_list = []
-    for chunk in chunks:
-        chunks_list.append({"metadata": chunk.metadata, 
-                        "page_content": chunk.page_content})
-    with open(path, "w") as saving_chunks:
-        json.dump(chunks_list, saving_chunks)
+upload_vectordb = InMemoryVectorStore(embedding = embedding)
 
-def load_chunks(path=chunks_json):
-    with open(path, "r") as reading_chunks:
-        datas = json.load(reading_chunks)
-    result = []
-    for data in datas:
-        result.append(Document(page_content=data["page_content"], metadata=data["metadata"]))
-    return result
 
-@tool
-def search_documents(question, resource_folder = resource_folder):
+def is_allowed_file_format(document):
+    try:
+        document_name = document.filename
+    except AttributeError:
+        document_name = document
+    for file_format in allowed_file_formats:
+        if document_name.endswith(file_format):
+            return True
+        else:
+            return False
+
+
+text_splitter = RecursiveCharacterTextSplitter(
+    separators = [" ", "\n", "\n\n", "\t", ",", ".", "!", "?", ";", ":"],
+    chunk_size = 300,
+    chunk_overlap = 50,
+    length_function = len
+)
+
+
+#vectorstore for pre uploaded content for a model (uploaded by me, not the user)
+def create_static_vectorstore():
+    global preupload_vectordb
+
+    temp = []
+
+    for document in os.listdir(preupload_folder):
+        if is_allowed_file_format(document):
+            path = os.path.join(preupload_folder, document)
+            loader = TextLoader(path, encoding = "utf-8")
+            temp.extend(loader.load())
+
+    chunks = text_splitter.split_documents(temp)
+
+    preupload_vectordb = Chroma.from_documents(
+        documents = chunks,
+        embedding = embedding,
+        persist_directory = preupload_persist_directory
+    )
+
+
+def add_uploaded_documents_to_vectorstore(uploaded_documents_list):
+    global upload_vectordb
+    temp = [] 
+
+    for document in uploaded_documents_list:
+        print(type(document))
+        path = os.path.join(upload_folder, document.filename)
+        document.save(path)
+        loader = TextLoader(path, encoding = "utf-8")
+        temp.extend(loader.load())
+
+    chunks = text_splitter.split_documents(temp)
+    upload_vectordb.add_documents(documents = chunks)
+
+
+if not os.path.exists(preupload_persist_directory) or not os.listdir(preupload_persist_directory):
+    create_static_vectorstore()
+else:
+    preupload_vectordb = Chroma(
+        persist_directory=preupload_persist_directory,
+        embedding_function=embedding
+    )
+
+
+@tool 
+@lru_cache(maxsize=10) 
+def search_documents(question, is_uploaded_document=False):
     ''' 
     This function searches for the most relevant information in 
-    the documents stored in the resource folder based on the 
+    the documents stored in the preupload folder based on the 
     user's question. It loads all text files, splits them into 
     chunks, creates embeddings, and performs a search to find 
     the most relevant chunks. The relevant information is then 
@@ -57,16 +116,17 @@ def search_documents(question, resource_folder = resource_folder):
 
     Run this once (or whenever documents change) — not on every query.
     '''
-    chunks = load_chunks()
-    documents_text = []
-    for chunk in chunks:
-        documents_text.append(chunk.page_content)
+
+    similar_chunks_pool = preupload_vectordb.similarity_search(question, k=20)
+    chunks_content = []
+    for chunk in similar_chunks_pool:
+        chunks_content.append(chunk.page_content)
 
     #search for the most relevant chunks based on the question
     reranker = {
         "model": "reranker",
         "query": question,
-        "documents": documents_text,
+        "documents": chunks_content,
         "top_n": 3,
     }
 

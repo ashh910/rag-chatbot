@@ -251,6 +251,86 @@
   button.send:hover{ opacity:0.85; }
   button.send:disabled{ opacity:0.4; cursor:default; }
 
+  button.attach{
+    background: var(--panel);
+    color: var(--text-dim);
+    border:1px solid var(--border);
+    width:44px;
+    flex-shrink:0;
+    border-radius:9px;
+    font-size:17px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  button.attach:hover{
+    background: var(--panel-raised);
+    color: var(--text);
+    border-color: var(--accent-agent);
+  }
+  button.attach.has-file{
+    color: var(--accent-agent);
+    border-color: var(--accent-agent);
+  }
+
+  .attachment-preview{
+    display:none;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:0 24px 12px 24px;
+  }
+  .attachment-preview.visible{ display:flex; }
+
+  .file-chip{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background: var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:6px 8px 6px 12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color: var(--text-dim);
+    max-width:320px;
+  }
+  .file-chip .file-name{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .file-chip .file-remove{
+    background:none;
+    border:none;
+    color: var(--text-faint);
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    padding:2px 4px;
+    border-radius:4px;
+  }
+  .file-chip .file-remove:hover{
+    color: var(--danger);
+    background: rgba(240,104,92,0.1);
+  }
+
+  .msg-file-chip{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color: var(--text-dim);
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:5px 10px;
+    margin-bottom:2px;
+  }
+
   .empty-state{
     margin:auto;
     text-align:center;
@@ -324,7 +404,11 @@
       <div class="empty-state" id="empty-state">no messages yet — say hi</div>
     </div>
 
+    <div class="attachment-preview" id="attachment-preview"></div>
+
     <div class="composer">
+      <input id="file-input" type="file" style="display:none" multiple>
+      <button class="attach" type="button" id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file(s)">📎</button>
       <input id="message" type="text" placeholder="Type a message...">
       <button class="send" type="button" onclick="send()">Send</button>
     </div>
@@ -363,7 +447,7 @@ function renderHistory(model){
   }
 
   history.forEach(entry => {
-    renderMessage(entry.role, entry.text);
+    renderMessage(entry.role, entry.text, entry.fileInfo);
   });
   chat.scrollTop = chat.scrollHeight;
 }
@@ -390,7 +474,8 @@ document.querySelector(`.model-item[data-model="${currentModel}"]`).classList.ad
 renderHistory(currentModel);
 
 // Renders a message bubble without touching history storage (used for replay)
-function renderMessage(role, text){
+// fileInfos (optional): array of { name, size }
+function renderMessage(role, text, fileInfos){
   const currentEmpty = document.getElementById("empty-state");
   if(currentEmpty) currentEmpty.remove();
   const msg = document.createElement("div");
@@ -399,20 +484,84 @@ function renderMessage(role, text){
     <span class="msg-label">${role === "user" ? "you" : "assistant"}</span>
     <div class="bubble"></div>
   `;
-  msg.querySelector(".bubble").textContent = text;
+
+  const bubble = msg.querySelector(".bubble");
+
+  if(fileInfos && fileInfos.length){
+    fileInfos.forEach(fileInfo => {
+      const chip = document.createElement("div");
+      chip.className = "msg-file-chip";
+      chip.textContent = `📎 ${fileInfo.name}`;
+      bubble.appendChild(chip);
+    });
+  }
+
+  if(text){
+    const textNode = document.createElement("div");
+    textNode.textContent = text;
+    bubble.appendChild(textNode);
+  }
+
   chat.appendChild(msg);
   chat.scrollTop = chat.scrollHeight;
   return msg;
 }
 
 // Renders a message AND records it into the current model's history
-function appendMessage(role, text){
-  const msg = renderMessage(role, text);
-  getHistory(currentModel).push({ role, text });
+function appendMessage(role, text, fileInfos){
+  const msg = renderMessage(role, text, fileInfos);
+  getHistory(currentModel).push({ role, text, fileInfo: fileInfos || null });
   return msg;
 }
 
 let isSending = false; // hard guard: makes double-fire structurally impossible
+let selectedFiles = [];
+
+const fileInput = document.getElementById("file-input");
+const attachBtn = document.getElementById("attach-btn");
+const attachmentPreview = document.getElementById("attachment-preview");
+
+fileInput.addEventListener("change", function(){
+  // accumulate across multiple attach clicks instead of replacing
+  selectedFiles = selectedFiles.concat(Array.from(fileInput.files));
+  fileInput.value = ""; // reset so picking the same file again still fires 'change'
+  renderAttachmentPreview();
+});
+
+function renderAttachmentPreview(){
+  attachmentPreview.innerHTML = "";
+
+  if(selectedFiles.length === 0){
+    attachmentPreview.classList.remove("visible");
+    attachBtn.classList.remove("has-file");
+    return;
+  }
+
+  selectedFiles.forEach((file, index) => {
+    const chip = document.createElement("div");
+    chip.className = "file-chip";
+    chip.innerHTML = `
+      <span class="file-name">${file.name}</span>
+      <button class="file-remove" type="button" title="Remove file">✕</button>
+    `;
+    chip.querySelector(".file-remove").addEventListener("click", () => removeAttachment(index));
+    attachmentPreview.appendChild(chip);
+  });
+
+  attachmentPreview.classList.add("visible");
+  attachBtn.classList.add("has-file");
+}
+
+function removeAttachment(index){
+  selectedFiles.splice(index, 1);
+  renderAttachmentPreview();
+}
+
+function clearAttachment(){
+  selectedFiles = [];
+  fileInput.value = "";
+  renderAttachmentPreview();
+}
 
 async function send(){
   console.log("[send] called", new Error().stack); // DEBUG — remove once confirmed fixed
@@ -424,7 +573,10 @@ async function send(){
 
   const input = document.getElementById("message");
   const text = input.value.trim();
-  if(text === "") return;
+  const files = selectedFiles;
+
+  // require at least one of text or a file
+  if(text === "" && files.length === 0) return;
 
   isSending = true;
   const sendBtn = document.querySelector("button.send");
@@ -432,17 +584,34 @@ async function send(){
 
   const activeModelAtSend = currentModel; // guard against a model switch mid-request
 
-  appendMessage("user", text);
+  const fileInfos = files.length ? files.map(f => ({ name: f.name, size: f.size })) : null;
+  appendMessage("user", text, fileInfos);
   input.value = "";
+  clearAttachment();
 
   const thinking = appendMessage("assistant", "…");
 
   try{
-    const response = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, model: activeModelAtSend })
-    });
+    let response;
+
+    if(files.length){
+      const formData = new FormData();
+      formData.append("message", text);
+      formData.append("model", activeModelAtSend);
+      files.forEach(file => formData.append("files", file)); // same key for all -> request.files.getlist("files")
+
+      response = await fetch("/chat", {
+        method: "POST",
+        body: formData
+      });
+    } else {
+      response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, model: activeModelAtSend })
+      });
+    }
+
     const data = await response.json();
 
     thinking.querySelector(".bubble").textContent = data.reply;
