@@ -1,4 +1,5 @@
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import (TextLoader, PyPDFLoader, 
+                                                    WebBaseLoader)
 from langchain_community.vectorstores import Chroma, InMemoryVectorStore
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -24,7 +25,7 @@ for document in os.listdir(upload_folder):
     os.remove(path)
 
 
-allowed_file_formats = [".txt"]
+allowed_file_formats = [".txt", ".pdf"]
 
 
 embedding = OpenAIEmbeddings(
@@ -35,6 +36,7 @@ embedding = OpenAIEmbeddings(
 
 
 upload_vectordb = InMemoryVectorStore(embedding = embedding)
+web_vectordb = InMemoryVectorStore(embedding = embedding)
 
 
 def is_allowed_file_format(document):
@@ -45,8 +47,6 @@ def is_allowed_file_format(document):
     for file_format in allowed_file_formats:
         if document_name.endswith(file_format):
             return True
-        else:
-            return False
 
 
 text_splitter = RecursiveCharacterTextSplitter(
@@ -66,7 +66,13 @@ def create_static_vectorstore():
     for document in os.listdir(preupload_folder):
         if is_allowed_file_format(document):
             path = os.path.join(preupload_folder, document)
-            loader = TextLoader(path, encoding = "utf-8")
+            splitted_document = document.split(".")
+            ending = splitted_document[-1]
+            match ending:
+                case "txt":
+                    loader = TextLoader(path, encoding = "utf-8")
+                case "pdf":
+                    loader = PyPDFLoader(path)
             temp.extend(loader.load())
 
     chunks = text_splitter.split_documents(temp)
@@ -86,7 +92,14 @@ def add_uploaded_documents_to_vectorstore(uploaded_documents_list):
         print(type(document))
         path = os.path.join(upload_folder, document.filename)
         document.save(path)
-        loader = TextLoader(path, encoding = "utf-8")
+        document_name = document.filename
+        splitted_document = document_name.split(".")
+        ending = splitted_document[-1]
+        match ending:
+            case "txt":
+                loader = TextLoader(path, encoding = "utf-8")
+            case "pdf":
+                loader = PyPDFLoader(path)
         temp.extend(loader.load())
 
     chunks = text_splitter.split_documents(temp)
@@ -102,9 +115,63 @@ else:
     )
 
 
+@tool
+@lru_cache(maxsize=10)
+def web_search(question, link):
+
+    ''' 
+    You have access to a web_search tool that searches web links and returns relevant excerpts.
+
+    Only call web_search when the user's question requires looking up 
+    specific information from provided link. For greetings, small talk, 
+    or questions you can already answer directly, respond in plain text 
+    without calling any tool.
+
+    web_search takes two arguments:
+    - question: the user's question, as a plain string.
+    - link: the link provided by the user.
+    '''
+    print(f"[DEBUG] link: {link}")
+
+    temp = []
+    loader = WebBaseLoader(link)
+    temp.extend(loader.load())
+    chunks = text_splitter.split_documents(temp)
+    web_vectordb.add_documents(documents = chunks)
+
+    similar_chunks_pool = web_vectordb.similarity_search(question, k=20)
+    chunks_content = []
+    for chunk in similar_chunks_pool:
+        chunks_content.append(chunk.page_content)
+
+    reranker = {
+        "model": "reranker",
+        "query": question,
+        "documents": chunks_content,
+        "top_n": 3,
+    }
+
+    try:
+        resp = requests.post(
+            RERANKER_URL,
+            headers={
+                "Authorization": f"Bearer {RERANKER_API}",
+                "Content-Type": "application/json",
+            },
+            json=reranker,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        relevant_chunks = resp.json()
+        return relevant_chunks["results"]
+    except requests.RequestException as e:
+        print(f"Request failed: {e}\nBody: {resp.text if 'resp' in locals() else ''}")
+
+
 @tool 
 @lru_cache(maxsize=10) 
 def search_documents(question, is_uploaded_document=False):
+
     ''' 
     You have access to a search_documents tool that searches documents and returns relevant excerpts.
 
@@ -118,6 +185,7 @@ def search_documents(question, is_uploaded_document=False):
     - is_uploaded_document: true if the user is asking about a file they personally 
       uploaded in this conversation, false if asking about general/reference documents.
     '''
+
     if is_uploaded_document:
         vectordb = upload_vectordb
     else:

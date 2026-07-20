@@ -94,14 +94,21 @@ def chat():
 
         is_file_uploaded = True
 
-    
-    try:
-        if manual_agent:
-            reply = manual_agent_response(api_key, model_choice, question, accepted_files)
-        else:
-            reply = agent_response(api_key, model_choice, question, accepted_files)
-    except Exception as e:
-        reply = str(e)
+        try:
+            if manual_agent:
+                reply = manual_agent_response(api_key, model_choice, question, accepted_files)
+            else:
+                reply = agent_response(api_key, model_choice, question, accepted_files)
+        except Exception as e:
+            reply = str(e)
+    else:
+        try:
+            if manual_agent:
+                reply = manual_agent_response(api_key, model_choice, question)
+            else:
+                reply = agent_response(api_key, model_choice, question)
+        except Exception as e:
+            reply = str(e)
     
     if files:
         print({"reply": reply, "file_status": file_status})

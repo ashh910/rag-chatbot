@@ -16,7 +16,6 @@
     --text-dim: #8b909c;
     --text-faint: #565b66;
     --accent-agent: #6ee7b7;
-    --accent-chat: #f0b458;
     --accent-user: #a78bfa;
     --danger: #f0685c;
   }
@@ -108,7 +107,6 @@
     flex-shrink:0;
   }
   .model-dot.agent{ background: var(--accent-agent); box-shadow:0 0 5px var(--accent-agent); }
-  .model-dot.chat{ background: var(--accent-chat); box-shadow:0 0 5px var(--accent-chat); }
 
   .model-info{
     display:flex;
@@ -126,18 +124,6 @@
     font-size:10.5px;
     color: var(--text-faint);
   }
-
-  .legend{
-    margin-top:auto;
-    padding:10px 8px 4px 8px;
-    border-top:1px solid var(--border);
-    font-size:10.5px;
-    color: var(--text-faint);
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-  .legend-row{ display:flex; align-items:center; gap:8px; }
 
   /* ---------- Main ---------- */
   .main{
@@ -354,47 +340,43 @@
 
     <div class="section-label">Select model</div>
     <div class="model-list" id="model-list">
-      <div class="model-item" data-model="gpt-oss" data-cap="agent">
+      <div class="model-item" data-model="gpt-oss">
         <span class="model-dot agent"></span>
         <span class="model-info">
           <span class="model-name">gpt-oss</span>
           <span class="model-tag">tools + RAG</span>
         </span>
       </div>
-      <div class="model-item" data-model="gemma4" data-cap="agent">
+      <div class="model-item" data-model="gemma4">
         <span class="model-dot agent"></span>
         <span class="model-info">
           <span class="model-name">gemma4</span>
           <span class="model-tag">tools + RAG</span>
         </span>
       </div>
-      <div class="model-item" data-model="qwen3-6" data-cap="agent">
+      <div class="model-item" data-model="qwen3-6">
         <span class="model-dot agent"></span>
         <span class="model-info">
           <span class="model-name">qwen3-6</span>
           <span class="model-tag">tools + RAG</span>
         </span>
       </div>
-      <div class="model-item" data-model="alemllm" data-cap="chat">
-        <span class="model-dot chat"></span>
+      <div class="model-item" data-model="alemllm">
+        <span class="model-dot agent"></span>
         <span class="model-info">
           <span class="model-name">alemllm</span>
-          <span class="model-tag">chat only</span>
+          <span class="model-tag">tools + RAG</span>
         </span>
       </div>
-      <div class="model-item" data-model="kazllm" data-cap="chat">
-        <span class="model-dot chat"></span>
+      <div class="model-item" data-model="kazllm">
+        <span class="model-dot agent"></span>
         <span class="model-info">
           <span class="model-name">kazllm</span>
-          <span class="model-tag">chat only</span>
+          <span class="model-tag">tools + RAG</span>
         </span>
       </div>
     </div>
 
-    <div class="legend">
-      <div class="legend-row"><span class="model-dot agent"></span> supports tool calling</div>
-      <div class="legend-row"><span class="model-dot chat"></span> plain chat only</div>
-    </div>
   </aside>
 
   <main class="main">
