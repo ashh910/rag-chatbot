@@ -213,6 +213,8 @@
     border:1px dashed var(--border);
     border-radius:20px;
   }
+  .system-note.accepted{ color: var(--accent-agent); border-color: var(--accent-agent); }
+  .system-note.declined{ color: var(--danger); border-color: var(--danger); }
 
   .composer{
     padding:16px 24px 22px 24px;
@@ -447,9 +449,31 @@ function renderHistory(model){
   }
 
   history.forEach(entry => {
-    renderMessage(entry.role, entry.text, entry.fileInfo);
+    if(entry.role === "system"){
+      renderSystemNote(entry.text, entry.status);
+    } else {
+      renderMessage(entry.role, entry.text, entry.fileInfo);
+    }
   });
   chat.scrollTop = chat.scrollHeight;
+}
+
+// Small pill notification (e.g. "file.txt uploaded" / "file.txt skipped").
+// status: "accepted" | "declined" | undefined (neutral)
+function renderSystemNote(text, status){
+  const currentEmpty = document.getElementById("empty-state");
+  if(currentEmpty) currentEmpty.remove();
+  const note = document.createElement("div");
+  note.className = `system-note${status ? " " + status : ""}`;
+  note.textContent = text;
+  chat.appendChild(note);
+  chat.scrollTop = chat.scrollHeight;
+  return note;
+}
+
+function appendSystemNote(text, status){
+  renderSystemNote(text, status);
+  getHistory(currentModel).push({ role: "system", text, status });
 }
 
 function setActiveModel(model){
@@ -592,27 +616,26 @@ async function send(){
   const thinking = appendMessage("assistant", "…");
 
   try{
-    let response;
+    // Always send as FormData — one simple path, whether or not files are attached.
+    const formData = new FormData();
+    formData.append("message", text);
+    formData.append("model", activeModelAtSend);
+    files.forEach(file => formData.append("files", file)); // same label "files" for every file
 
-    if(files.length){
-      const formData = new FormData();
-      formData.append("message", text);
-      formData.append("model", activeModelAtSend);
-      files.forEach(file => formData.append("files", file)); // same key for all -> request.files.getlist("files")
-
-      response = await fetch("/chat", {
-        method: "POST",
-        body: formData
-      });
-    } else {
-      response = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, model: activeModelAtSend })
-      });
-    }
+    const response = await fetch("/chat", {
+      method: "POST",
+      body: formData
+    });
 
     const data = await response.json();
+
+    // Show a small notification per file the backend accepted/declined.
+    if(Array.isArray(data.file_status)){
+      data.file_status.forEach(f => {
+        const label = f.accepted ? `"${f.filename}" uploaded` : `"${f.filename}" skipped — unsupported format`;
+        appendSystemNote(label, f.accepted ? "accepted" : "declined");
+      });
+    }
 
     thinking.querySelector(".bubble").textContent = data.reply;
     // update the stored copy of that placeholder message too

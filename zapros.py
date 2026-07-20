@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, jsonify # RequestEntityTooLarge
+from flask import Flask, render_template, request, jsonify, Request # RequestEntityTooLarge
 from agent_invoking import agent_response
 from manual_agent_invoking import manual_agent_response, kazllm_history, alemllm_history
-from rag import is_allowed_file_format, add_uploaded_documents_to_vectorstore
+from rag import (is_allowed_file_format, add_uploaded_documents_to_vectorstore)
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -35,34 +35,24 @@ def chat():
         question = request.form.get("message", "")
         model_choice = request.form.get("model", "gpt-oss")
 
-    files = request.files.getlist('files')
-    #try:
-        #files = request.files.getlist('files')
-    #except Error:
-        #raise RequestEntityTooLarge("Uploaded document is too large.")
+    try:
+        files = request.files.getlist('files')
+    except:
+        raise RequestEntityTooLarge("Uploaded document is too large.")
 
-    if files is None and not question:
-        return jsonify({"error": "No input."}), 400
-    
-    if files is not None:
-        accepted_files = []
+    '''
+        Connection Reset Issue
 
-        for file in files:
-            if not is_allowed_file_format(file):
-                print(f'"{file.filename}" was skipped, unacceptable format.') 
-            else:
-                accepted_files.append(file)
-                print(f'"{file.filename}" was uploaded.') 
-        add_uploaded_documents_to_vectorstore(accepted_files)
+            When using the local development server, you may get a connection 
+            reset error instead of a 413 response. You will get the correct 
+            status response when running the app with a production WSGI server.
 
-        is_file_uploaded = True
-        #ensures only allowed file formats are inputted, otherwise, skips.
-   
+            https://flask.palletsprojects.com/en/stable/patterns/fileuploads/
+    '''
 
     manual_agent = False
     history_log = None
-
-
+ 
     match model_choice: 
         case "gpt-oss":
             api_key = GPT_OSS_API_KEY
@@ -84,6 +74,27 @@ def chat():
         case _:
             raise ValueError(f"Invalid model choice: {model_choice}")
 
+    if files is None and not question:
+        return jsonify({"error": "No input."}), 400
+    
+    file_status = []
+
+    if files:
+        accepted_files = []
+
+        for file in files:
+            if not is_allowed_file_format(file):
+                file_status.append({"filename": file.filename, "accepted": False})
+            else:
+                accepted_files.append(file)
+                file_status.append({"filename": file.filename, "accepted": True})
+        
+        if accepted_files is not None:
+            add_uploaded_documents_to_vectorstore(accepted_files)
+
+        is_file_uploaded = True
+
+    
     try:
         if manual_agent:
             reply = manual_agent_response(api_key, model_choice, question, accepted_files)
@@ -92,7 +103,12 @@ def chat():
     except Exception as e:
         reply = str(e)
     
-    return jsonify({"reply": reply})
+    if files:
+        print({"reply": reply, "file_status": file_status})
+        return jsonify({"reply": reply, "file_status": file_status})
+    else:
+        print({"reply": reply})
+        return jsonify({"reply": reply})
 
 if __name__ == "__main__":
     app.run(port=8000, debug=True)
