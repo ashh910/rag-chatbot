@@ -18,7 +18,9 @@ history_initial_template = [
                 if not specified.
             - web_search(question, link) searches infromation from a web page and returns relevant excerpts.
                 - question: the user's question, as a plain string.
-                - is_uploaded_document: the link provided by the user.
+                - link: the link provided by the user.
+            - extract_image_text(image_link) searches text inside the image from an image link and returns relevant excerpts.
+                - image_link: the link provided by the user that leads to the image with text.
 
             Only use search_documents when the user's question requires looking 
             up specific information from documents. Only use web_search when 
@@ -30,6 +32,7 @@ history_initial_template = [
             When you need a tool, respond with ONLY this JSON on its own, nothing else. Examples:
             {"tool": "tool_name", "args": {"question": "...", "is_uploaded_document": true or false}}
             {"tool": "tool_name", "args": {"question": "...", "link": "..."}}
+            {"tool": "tool_name", "args": {"image_link": "..."}}
 
             When you have the final answer, respond normally in plain text (no JSON).
         """

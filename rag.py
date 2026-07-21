@@ -131,7 +131,6 @@ def web_search(question, link):
     - question: the user's question, as a plain string.
     - link: the link provided by the user.
     '''
-    print(f"[DEBUG] link: {link}")
 
     temp = []
     loader = WebBaseLoader(link)

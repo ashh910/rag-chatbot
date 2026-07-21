@@ -3,9 +3,11 @@ flask
 requests
 langchain
 langchain-community
+langchain-core
 langchain-openai
 langchain-google-genai
 langchain-text-splitters
 langgraph
+openai
 pydantic
 python-dotenv

@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from rag import search_documents, web_search
+from deepseek_ocr import extract_image_text
 from langchain_openai import ChatOpenAI
 import uuid, os
 from dotenv import load_dotenv
@@ -54,7 +55,7 @@ def agent_response(api_key, model_choice, question, files_list=None):
     
     agent = create_agent(
         model=my_chatbot,
-        tools=[search_documents, web_search],
+        tools=[search_documents, web_search, extract_image_text],
         checkpointer=checkpointer
     )
 

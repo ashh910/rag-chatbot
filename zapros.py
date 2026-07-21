@@ -111,10 +111,8 @@ def chat():
             reply = str(e)
     
     if files:
-        print({"reply": reply, "file_status": file_status})
         return jsonify({"reply": reply, "file_status": file_status})
     else:
-        print({"reply": reply})
         return jsonify({"reply": reply})
 
 if __name__ == "__main__":
