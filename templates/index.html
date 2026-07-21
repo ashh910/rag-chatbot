@@ -319,6 +319,15 @@
     margin-bottom:2px;
   }
 
+  .msg-image{
+    display:block;
+    max-width:340px;
+    width:100%;
+    border-radius:10px;
+    border:1px solid var(--border);
+    margin-bottom:6px;
+  }
+
   .empty-state{
     margin:auto;
     text-align:center;
@@ -373,6 +382,13 @@
         <span class="model-info">
           <span class="model-name">kazllm</span>
           <span class="model-tag">tools + RAG</span>
+        </span>
+      </div>
+      <div class="model-item" data-model="text-to-image">
+        <span class="model-dot agent"></span>
+        <span class="model-info">
+          <span class="model-name">text-to-image</span>
+          <span class="model-tag">image generation</span>
         </span>
       </div>
     </div>
@@ -434,7 +450,7 @@ function renderHistory(model){
     if(entry.role === "system"){
       renderSystemNote(entry.text, entry.status);
     } else {
-      renderMessage(entry.role, entry.text, entry.fileInfo);
+      renderMessage(entry.role, entry.text, entry.fileInfo, entry.imageInfo);
     }
   });
   chat.scrollTop = chat.scrollHeight;
@@ -468,6 +484,11 @@ function setActiveModel(model){
 
   activeLabel.textContent = model;
 
+  const input = document.getElementById("message");
+  input.placeholder = model === "text-to-image"
+    ? "Describe the image you want..."
+    : "Type a message...";
+
   // show that model's own history instead of wiping it
   renderHistory(model);
 }
@@ -479,19 +500,19 @@ modelItems.forEach(item => {
 document.querySelector(`.model-item[data-model="${currentModel}"]`).classList.add("active");
 renderHistory(currentModel);
 
-// Renders a message bubble without touching history storage (used for replay)
-// fileInfos (optional): array of { name, size }
-function renderMessage(role, text, fileInfos){
-  const currentEmpty = document.getElementById("empty-state");
-  if(currentEmpty) currentEmpty.remove();
-  const msg = document.createElement("div");
-  msg.className = `msg ${role}`;
-  msg.innerHTML = `
-    <span class="msg-label">${role === "user" ? "you" : "assistant"}</span>
-    <div class="bubble"></div>
-  `;
+// Fills a bubble element with (in order): image, file chips, text.
+// imageInfo (optional): { src } where src is any valid <img> src
+//   (a normal URL, or a data: URI for base64-returned images)
+function fillBubble(bubble, text, fileInfos, imageInfo){
+  bubble.innerHTML = "";
 
-  const bubble = msg.querySelector(".bubble");
+  if(imageInfo && imageInfo.src){
+    const img = document.createElement("img");
+    img.className = "msg-image";
+    img.src = imageInfo.src;
+    img.alt = text || "generated image";
+    bubble.appendChild(img);
+  }
 
   if(fileInfos && fileInfos.length){
     fileInfos.forEach(fileInfo => {
@@ -507,6 +528,22 @@ function renderMessage(role, text, fileInfos){
     textNode.textContent = text;
     bubble.appendChild(textNode);
   }
+}
+
+// Renders a message bubble without touching history storage (used for replay)
+// fileInfos (optional): array of { name, size }
+// imageInfo (optional): { src }
+function renderMessage(role, text, fileInfos, imageInfo){
+  const currentEmpty = document.getElementById("empty-state");
+  if(currentEmpty) currentEmpty.remove();
+  const msg = document.createElement("div");
+  msg.className = `msg ${role}`;
+  msg.innerHTML = `
+    <span class="msg-label">${role === "user" ? "you" : "assistant"}</span>
+    <div class="bubble"></div>
+  `;
+
+  fillBubble(msg.querySelector(".bubble"), text, fileInfos, imageInfo);
 
   chat.appendChild(msg);
   chat.scrollTop = chat.scrollHeight;
@@ -514,9 +551,9 @@ function renderMessage(role, text, fileInfos){
 }
 
 // Renders a message AND records it into the current model's history
-function appendMessage(role, text, fileInfos){
-  const msg = renderMessage(role, text, fileInfos);
-  getHistory(currentModel).push({ role, text, fileInfo: fileInfos || null });
+function appendMessage(role, text, fileInfos, imageInfo){
+  const msg = renderMessage(role, text, fileInfos, imageInfo);
+  getHistory(currentModel).push({ role, text, fileInfo: fileInfos || null, imageInfo: imageInfo || null });
   return msg;
 }
 
@@ -619,11 +656,52 @@ async function send(){
       });
     }
 
-    thinking.querySelector(".bubble").textContent = data.reply;
+    // Backend contract for image models — we try a few common shapes so this
+    // works regardless of exactly how your /chat route packages the result:
+    //   { "image_base64": "iVBORw0..." }              <- raw base64, no data: prefix
+    //   { "image_url": "https://..." }                 <- direct URL
+    //   { "reply": "iVBORw0..." }                       <- base64 sent as "reply"
+    //   { "reply": { "image_base64": "..." } }
+    //   { "reply": { "url": "..." } }
+    //   { "reply": { "data": [ { "b64_json": "..." } ] } }   <- raw OpenAI-style images API shape
+    //   { "reply": { "data": [ { "url": "..." } ] } }
+    function extractImage(data){
+      const candidates = [data, data.reply];
+      for(const c of candidates){
+        if(!c) continue;
+        if(typeof c === "string" && c.length > 100 && !c.trim().startsWith("http")){
+          // long string, not a URL -> treat as raw base64
+          return { src: `data:image/png;base64,${c}` };
+        }
+        if(typeof c === "object"){
+          if(c.image_base64) return { src: `data:image/png;base64,${c.image_base64}` };
+          if(c.b64_json) return { src: `data:image/png;base64,${c.b64_json}` };
+          if(c.image_url) return { src: c.image_url };
+          if(c.url) return { src: c.url };
+          if(Array.isArray(c.data) && c.data[0]){
+            if(c.data[0].b64_json) return { src: `data:image/png;base64,${c.data[0].b64_json}` };
+            if(c.data[0].url) return { src: c.data[0].url };
+          }
+        }
+      }
+      return null;
+    }
+
+    const imageInfo = extractImage(data);
+    // Only show reply as text if it's an actual string (avoids "[object Object]")
+    const replyText = typeof data.reply === "string" && !imageInfo ? data.reply
+                     : typeof data.reply === "string" && data.reply.length < 100 ? data.reply
+                     : "";
+
+    fillBubble(thinking.querySelector(".bubble"), replyText, null, imageInfo);
+
     // update the stored copy of that placeholder message too
     const history = getHistory(activeModelAtSend);
     const last = history[history.length - 1];
-    if(last && last.role === "assistant") last.text = data.reply;
+    if(last && last.role === "assistant"){
+      last.text = replyText;
+      last.imageInfo = imageInfo;
+    }
   } catch(err){
     const errText = "Error: could not reach server.";
     thinking.querySelector(".bubble").textContent = errText;

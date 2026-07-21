@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, Request # RequestEnt
 from agent_invoking import agent_response
 from manual_agent_invoking import manual_agent_response, kazllm_history, alemllm_history
 from rag import (is_allowed_file_format, add_uploaded_documents_to_vectorstore)
+from image_generation import get_image
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,6 +12,7 @@ ALEMLLM_API_KEY = os.getenv("ALEMLLM_API_KEY")
 KAZLLM_API_KEY = os.getenv("KAZLLM_API_KEY")
 GEMMA_API_KEY = os.getenv("GEMMA_API_KEY")
 QWEN_API_KEY = os.getenv("QWEN_API_KEY")
+
 
 URL = os.getenv("URL")
 
@@ -52,25 +54,35 @@ def chat():
 
     manual_agent = False
     history_log = None
+    image_generating = False
  
     match model_choice: 
         case "gpt-oss":
             api_key = GPT_OSS_API_KEY
             manual_agent = False
+            image_generating = False
         case "alemllm":
             api_key = ALEMLLM_API_KEY
             manual_agent = True
+            image_generating = False
             history_log = alemllm_history
         case "kazllm":
             api_key = KAZLLM_API_KEY
             manual_agent = True 
+            image_generating = False
             history_log = kazllm_history
         case "gemma4":
             api_key = GEMMA_API_KEY
             manual_agent = False
+            image_generating = False
         case "qwen3-6":
             api_key = QWEN_API_KEY
             manual_agent = False
+            image_generating = False
+        case "text-to-image":
+            image_generating = True
+            manual_agent = False
+            
         case _:
             raise ValueError(f"Invalid model choice: {model_choice}")
 
@@ -98,7 +110,10 @@ def chat():
             if manual_agent:
                 reply = manual_agent_response(api_key, model_choice, question, accepted_files)
             else:
-                reply = agent_response(api_key, model_choice, question, accepted_files)
+                if image_generating:
+                    reply = get_image(question, accepted_files)
+                else:
+                    reply = agent_response(api_key, model_choice, question, accepted_files)
         except Exception as e:
             reply = str(e)
     else:
@@ -106,7 +121,10 @@ def chat():
             if manual_agent:
                 reply = manual_agent_response(api_key, model_choice, question)
             else:
-                reply = agent_response(api_key, model_choice, question)
+                if image_generating:
+                    reply = get_image(question)
+                else:
+                    reply = agent_response(api_key, model_choice, question)
         except Exception as e:
             reply = str(e)
     
