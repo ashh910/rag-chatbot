@@ -51,8 +51,8 @@ def is_allowed_file_format(document):
 
 text_splitter = RecursiveCharacterTextSplitter(
     separators = [" ", "\n", "\n\n", "\t", ",", ".", "!", "?", ";", ":"],
-    chunk_size = 300,
-    chunk_overlap = 50,
+    chunk_size = 750,
+    chunk_overlap = 150,
     length_function = len
 )
 
@@ -118,7 +118,7 @@ else:
 @tool
 @lru_cache(maxsize=10)
 def web_search(question, link):
-
+    
     ''' 
     You have access to a web_search tool that searches web links and returns relevant excerpts.
 
@@ -132,11 +132,16 @@ def web_search(question, link):
     - link: the link provided by the user.
     '''
 
+    print(f"[DEBUG]: [tool call] Information from a website was extracted for this call: {link}.")
+
     temp = []
-    loader = WebBaseLoader(link)
-    temp.extend(loader.load())
-    chunks = text_splitter.split_documents(temp)
-    web_vectordb.add_documents(documents = chunks)
+    try:
+        loader = WebBaseLoader(link)
+        temp.extend(loader.load())
+        chunks = text_splitter.split_documents(temp)
+        web_vectordb.add_documents(documents = chunks)
+    except Exception as e:
+        print(f"Somethign went wrong: {e}")
 
     similar_chunks_pool = web_vectordb.similarity_search(question, k=20)
     chunks_content = []
@@ -182,15 +187,19 @@ def search_documents(question, is_uploaded_document=False):
     search_documents takes two arguments:
     - question: the user's question, as a plain string.
     - is_uploaded_document: true if the user is asking about a file they personally 
-      uploaded in this conversation, false if asking about general/reference documents.
+      uploaded in this conversation in current or preivous messages, 
+      false if asking about general/reference documents. This value determines if the
+      model should refer to vectorbase for file data uploaded by the user.
     '''
 
     if is_uploaded_document:
         vectordb = upload_vectordb
+        print(f"[DEBUG]: [tool call] User's file data was used to search documents.")
     else:
         vectordb = preupload_vectordb
+        print(f"[DEBUG]: [tool call] Preuploaded file data was used to search documents.")
 
-    similar_chunks_pool = vectordb.similarity_search(question, k=20)
+    similar_chunks_pool = vectordb.similarity_search(question, k=25)
     chunks_content = []
     for chunk in similar_chunks_pool:
         chunks_content.append(chunk.page_content)
@@ -200,7 +209,7 @@ def search_documents(question, is_uploaded_document=False):
         "model": "reranker",
         "query": question,
         "documents": chunks_content,
-        "top_n": 3,
+        "top_n": 5,
     }
 
     try:

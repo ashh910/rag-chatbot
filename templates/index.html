@@ -607,8 +607,6 @@ function clearAttachment(){
 }
 
 async function send(){
-  console.log("[send] called", new Error().stack); // DEBUG — remove once confirmed fixed
-
   if(isSending){
     console.log("[send] blocked — a request is already in flight");
     return;
@@ -656,42 +654,36 @@ async function send(){
       });
     }
 
-    // Backend contract for image models — we try a few common shapes so this
-    // works regardless of exactly how your /chat route packages the result:
-    //   { "image_base64": "iVBORw0..." }              <- raw base64, no data: prefix
-    //   { "image_url": "https://..." }                 <- direct URL
-    //   { "reply": "iVBORw0..." }                       <- base64 sent as "reply"
-    //   { "reply": { "image_base64": "..." } }
-    //   { "reply": { "url": "..." } }
-    //   { "reply": { "data": [ { "b64_json": "..." } ] } }   <- raw OpenAI-style images API shape
-    //   { "reply": { "data": [ { "url": "..." } ] } }
-    function extractImage(data){
-      const candidates = [data, data.reply];
-      for(const c of candidates){
-        if(!c) continue;
-        if(typeof c === "string" && c.length > 100 && !c.trim().startsWith("http")){
-          // long string, not a URL -> treat as raw base64
-          return { src: `data:image/png;base64,${c}` };
-        }
-        if(typeof c === "object"){
-          if(c.image_base64) return { src: `data:image/png;base64,${c.image_base64}` };
-          if(c.b64_json) return { src: `data:image/png;base64,${c.b64_json}` };
-          if(c.image_url) return { src: c.image_url };
-          if(c.url) return { src: c.url };
-          if(Array.isArray(c.data) && c.data[0]){
-            if(c.data[0].b64_json) return { src: `data:image/png;base64,${c.data[0].b64_json}` };
-            if(c.data[0].url) return { src: c.data[0].url };
-          }
+    // Backend contract: every response carries an explicit "type" field, so the
+    // frontend never has to guess whether "reply" is text or image data.
+    //   { "type": "text",  "reply": "some answer", "file_status": [...] }
+    //   { "type": "image", "reply": "iVBORw0..." }              <- raw base64, no data: prefix
+    //   { "type": "image", "reply": { "image_base64": "..." } }
+    //   { "type": "image", "reply": { "url": "..." } }
+    //   { "type": "image", "reply": { "data": [ { "b64_json": "..." } ] } }  <- OpenAI-style images API shape
+    //   { "type": "image", "reply": { "data": [ { "url": "..." } ] } }
+    function extractImage(reply){
+      if(!reply) return null;
+      if(typeof reply === "string"){
+        return { src: `data:image/png;base64,${reply}` };
+      }
+      if(typeof reply === "object"){
+        if(reply.image_base64) return { src: `data:image/png;base64,${reply.image_base64}` };
+        if(reply.b64_json) return { src: `data:image/png;base64,${reply.b64_json}` };
+        if(reply.image_url) return { src: reply.image_url };
+        if(reply.url) return { src: reply.url };
+        if(Array.isArray(reply.data) && reply.data[0]){
+          if(reply.data[0].b64_json) return { src: `data:image/png;base64,${reply.data[0].b64_json}` };
+          if(reply.data[0].url) return { src: reply.data[0].url };
         }
       }
       return null;
     }
 
-    const imageInfo = extractImage(data);
-    // Only show reply as text if it's an actual string (avoids "[object Object]")
-    const replyText = typeof data.reply === "string" && !imageInfo ? data.reply
-                     : typeof data.reply === "string" && data.reply.length < 100 ? data.reply
-                     : "";
+    const imageInfo = data.type === "image" ? extractImage(data.reply) : null;
+    // Only show reply as text when the backend actually says it's text
+    // (avoids ever rendering "[object Object]" or misreading image payloads as text).
+    const replyText = data.type === "text" && typeof data.reply === "string" ? data.reply : "";
 
     fillBubble(thinking.querySelector(".bubble"), replyText, null, imageInfo);
 

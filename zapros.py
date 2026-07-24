@@ -59,32 +59,35 @@ def chat():
     match model_choice: 
         case "gpt-oss":
             api_key = GPT_OSS_API_KEY
-            manual_agent = False
-            image_generating = False
         case "alemllm":
             api_key = ALEMLLM_API_KEY
-            manual_agent = True
-            image_generating = False
             history_log = alemllm_history
         case "kazllm":
             api_key = KAZLLM_API_KEY
-            manual_agent = True 
-            image_generating = False
             history_log = kazllm_history
         case "gemma4":
             api_key = GEMMA_API_KEY
-            manual_agent = False
-            image_generating = False
         case "qwen3-6":
             api_key = QWEN_API_KEY
-            manual_agent = False
-            image_generating = False
         case "text-to-image":
             image_generating = True
-            manual_agent = False
-            
         case _:
             raise ValueError(f"Invalid model choice: {model_choice}")
+
+    agents = ["gpt-oss", "gemma4", "qwen3-6"]
+    manual_agents = ["alemllm", "kazllm"]
+
+    if model_choice in agents:
+        manual_agent = False
+        image_generating = False
+    elif model_choice in manual_agents:
+        manual_agent = True
+        image_generating = False
+
+    if image_generating:
+        response_type = "image"
+    else:
+        response_type = "text"
 
     if files is None and not question:
         return jsonify({"error": "No input."}), 400
@@ -116,22 +119,20 @@ def chat():
                     reply = agent_response(api_key, model_choice, question, accepted_files)
         except Exception as e:
             reply = str(e)
+
+        return jsonify({"type": response_type, "reply": reply, "file_status": file_status})
     else:
         try:
-            if manual_agent:
+            if response_type == "image":
+                reply = get_image(question)
+            elif manual_agent:
                 reply = manual_agent_response(api_key, model_choice, question)
             else:
-                if image_generating:
-                    reply = get_image(question)
-                else:
-                    reply = agent_response(api_key, model_choice, question)
+                reply = agent_response(api_key, model_choice, question)
         except Exception as e:
             reply = str(e)
-    
-    if files:
-        return jsonify({"reply": reply, "file_status": file_status})
-    else:
-        return jsonify({"reply": reply})
+        
+        return jsonify({"type": response_type, "reply": reply})  
 
 if __name__ == "__main__":
     app.run(port=8000, debug=True)

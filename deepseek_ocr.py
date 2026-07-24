@@ -20,7 +20,7 @@ client = OpenAI(
 @tool
 @lru_cache(maxsize=10)
 def extract_image_text(image_link):
-
+    
     ''' 
         You have access to a extract_image_text tool that extracts text in 
         the image from a provided image link and returns relevant excerpts.
@@ -34,6 +34,8 @@ def extract_image_text(image_link):
         - image_link: the link provided by the user that leads to the image with text.
     '''
 
+    print(f"[DEBUG]: [tool call] Text from an image link was extracted for this call.")
+    
     messages = [
         {
             "role": "user",
