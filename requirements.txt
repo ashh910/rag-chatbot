@@ -8,6 +8,8 @@ langchain-openai
 langchain-google-genai
 langchain-text-splitters
 langgraph
+linkup-sdk
 openai
 pydantic
+pypdf
 python-dotenv

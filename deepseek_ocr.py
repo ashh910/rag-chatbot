@@ -18,7 +18,7 @@ client = OpenAI(
 #IMAGE_URL = "https://i.imgur.com/x67a6us.jpeg"  # any plain text image
 
 @tool
-@lru_cache(maxsize=10)
+@lru_cache(maxsize=50)
 def extract_image_text(image_link):
     
     ''' 
