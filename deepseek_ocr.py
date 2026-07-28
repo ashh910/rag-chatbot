@@ -81,7 +81,7 @@ def extract_image_file_text(image):
     return(response.choices[0].message.content)
 
 
-def extract_image_file_text_for_tool(image):
+def extract_image_file_text_for_tool(image, preupload = False):
     
     ''' 
         You have access to a extract_image_text tool that extracts text in 
@@ -97,14 +97,17 @@ def extract_image_file_text_for_tool(image):
         ".png" or ".jpeg"
     '''
     
-    upload_folder = "RAG Files/uploaded files"
+    if preupload:
+        folder = "RAG Files/preuploaded files"
+    else:
+        folder = "RAG Files/uploaded files"
 
     if type(image) != str:
         image_name = image.filename
     else:
         image_name = image
 
-    path = os.path.join(upload_folder, image_name)
+    path = os.path.join(folder, image_name)
     with open(path, "rb") as f:
         file = f.read()
         b64_code = base64.b64encode(file).decode("utf-8")

@@ -153,7 +153,7 @@ def manual_agent_response(api_key, model, question, files_list = None):
                 #filter results by relevance
                 tool_result = []
                 for i in result:
-                    if i.get('relevance_score', 0) > 0.001:
+                    if i.get('relevance_score', 0) > 0.000001:
                         tool_result.append(i)
 
                 #check if any relevant information is present

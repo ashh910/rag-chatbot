@@ -1,0 +1,55 @@
+SOLSTICE ROBOTICS INC. — INTERNAL MEETING NOTES
+(Fictional test document)
+
+Meeting: Q3 Product Roadmap Sync
+Date: July 21, 2026
+Location: Austin HQ, Conference Room "Ganymede" / Zoom hybrid
+Attendees: P. Nandakumar (CEO), I. Okafor (CTO), M. Weill (CFO),
+           R. Solano (VP Sales), T. Baptiste (VP Manufacturing)
+Notetaker: J. Alvarez
+
+AGENDA
+------
+1. GROVE-2 launch readiness
+2. HAUL-4 supply chain delay
+3. HOME beta program update
+4. Reno plant capacity planning
+5. Q3 hiring plan
+
+NOTES
+-----
+1. GROVE-2 launch readiness (I. Okafor)
+   - Field trial data finalized; herbicide reduction figure confirmed
+     at 78% across 12 sites.
+   - Firmware v2.3.1 passed safety certification on July 18.
+   - Marketing asks: need updated spec sheet by July 28.
+   - ACTION: T. Baptiste to confirm Reno line can hit 40 units/week
+     by September 1.
+
+2. HAUL-4 supply chain delay (T. Baptiste)
+   - LIDAR module supplier (Kestrel Sensing) reported 6-week delay
+     due to component shortage.
+   - Backup supplier (Aurelia Optics) quoted at +14% cost, 3-week
+     lead time.
+   - Decision: switch to Aurelia for next 500 units, revisit Kestrel
+     contract in Q4.
+   - ACTION: M. Weill to approve revised BOM cost by July 25.
+
+3. HOME beta program update (R. Solano)
+   - 340 households enrolled in HOME beta waitlist; 50 units shipping
+     to beta testers in August.
+   - Early feedback: battery life shorter than spec in high-traffic
+     homes (avg 5.5 hrs vs 7 hr target).
+   - ACTION: engineering to investigate power draw on navigation
+     subsystem.
+
+4. Reno plant capacity planning (T. Baptiste)
+   - Current utilization at 82%.
+   - Proposal to add second shift starting October pending demand
+     confirmation from Sales.
+
+5. Q3 hiring plan (P. Nandakumar)
+   - Approved: 14 new reqs (8 engineering, 4 manufacturing, 2 sales)
+   - Hiring freeze remains in place for G&A roles through Q3.
+
+NEXT MEETING: August 4, 2026, 10:00 AM CT

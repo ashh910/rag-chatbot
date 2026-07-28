@@ -1,0 +1,40 @@
+FOR IMMEDIATE RELEASE
+(Fictional test document — not a real press release)
+
+Solstice Robotics Announces GROVE-2 Agricultural Robot,
+Cuts Herbicide Use by 78% in Field Trials
+
+AUSTIN, TX — July 14, 2026 — Solstice Robotics Inc. today unveiled the
+GROVE-2, the second generation of its autonomous weeding and harvesting
+robot for row-crop farms. In year-long field trials across twelve farms
+in California's Central Valley, the GROVE-2 reduced herbicide
+application by 78% compared to conventional spraying methods while
+maintaining crop yield within 2% of baseline.
+
+"GROVE-2 represents three years of work on our vision-guided precision
+actuation system," said Ines Okafor, Chief Technology Officer of
+Solstice Robotics. "Farmers get the same results with a fraction of
+the chemical inputs, and the robot pays for itself in under two
+growing seasons."
+
+The GROVE-2 uses a twelve-camera stereo-vision array paired with a
+custom edge-inference chip to identify and mechanically remove weeds
+at a rate of up to 1.4 acres per hour. The unit is fully solar-assisted
+and can operate for up to 14 hours between charges.
+
+Pricing for the GROVE-2 starts at $84,500 per unit, with a
+subscription-based "Robotics-as-a-Service" leasing option available
+starting at $2,100/month. General availability is planned for
+September 2026, with pre-orders opening August 1.
+
+About Solstice Robotics Inc.
+Solstice Robotics designs autonomous robots for logistics, agriculture,
+and home markets. Founded in 2014, the company is headquartered in
+Austin, Texas, with manufacturing and R&D sites across three
+countries. (Fictional company created for software testing purposes.)
+
+Media Contact:
+Dana Fitzgerald
+Director of Communications, Solstice Robotics Inc.
+press@solsticerobotics-example.test
+(512) 555-0199

@@ -70,9 +70,15 @@ def create_static_vectorstore():
             match ending:
                 case "txt":
                     loader = TextLoader(path, encoding = "utf-8")
+                    temp.extend(loader.load())
                 case "pdf":
                     loader = PyPDFLoader(path)
-            temp.extend(loader.load())
+                    temp.extend(loader.load())
+                case "jpeg" | "png":
+                    text = extract_image_file_text_for_tool(document, preupload=True)
+                    doc = Document(page_content=text)
+                    temp.append(doc) 
+            
 
     chunks = text_splitter.split_documents(temp)
 
@@ -213,17 +219,26 @@ def search_documents(question, is_uploaded_document=False):
     ''' 
     You have access to a search_documents tool that searches documents and returns relevant excerpts.
 
-    Only call search_documents when the user's question requires looking up 
-    specific information from documents. For greetings, small talk, 
-    or questions you can already answer directly, respond in plain text 
-    without calling any tool.
+    Only call search_documents when the user's question requires looking up specific 
+    information that lives in documents — either:
+    (a) a file the user personally uploaded in this conversation (current or previous 
+        messages), or
+    (b) company/organizational information stored in the preuploaded reference 
+        document set.
+
+    Do NOT call search_documents for greetings, small talk, general knowledge questions, 
+    or anything you can already answer directly without consulting documents. If the 
+    question doesn't clearly fall into (a) or (b), respond in plain text without calling 
+    any tool.
 
     search_documents takes two arguments:
     - question: the user's question, as a plain string.
-    - is_uploaded_document: true if the user is asking about a file they personally 
-      uploaded in this conversation in current or preivous messages, 
-      false if asking about general/reference documents. This value determines if the
-      model should refer to vectorbase for file data uploaded by the user.
+    - is_uploaded_document: true if the question falls under case (a) — the user is 
+    asking about a file they personally uploaded in this conversation (current or 
+    previous messages). false if it falls under case (b) — the user is asking about 
+    general/reference or company information stored in the preuploaded document set. 
+    This value determines whether the model should query the user's personal 
+    vectorbase (uploaded files) versus the shared/reference vectorbase.
     '''
 
     if is_uploaded_document:

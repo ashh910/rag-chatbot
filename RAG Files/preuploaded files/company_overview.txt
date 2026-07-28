@@ -1,0 +1,36 @@
+SOLSTICE ROBOTICS INC.
+Company Overview (Fictional / Test Data)
+=========================================
+
+Founded: March 2014
+Headquarters: 4400 Meridian Way, Suite 210, Austin, TX 78701
+Employees: 612 (as of Q2 2026)
+Industry: Industrial & Consumer Robotics
+Ticker (fictional): NASDAQ: SLRB
+CEO: Priya Nandakumar
+CFO: Marcus Weill
+CTO: Ines Okafor
+
+MISSION STATEMENT
+-----------------
+Solstice Robotics designs and manufactures autonomous mobile robots
+and robotic-arm systems for warehouse logistics, agriculture, and
+home assistance markets. Our mission is "to make physical automation
+as easy to deploy as software."
+
+PRODUCT LINES
+-------------
+1. Solstice HAUL series - autonomous warehouse pallet movers
+2. Solstice ARM-7 - modular robotic arm for light manufacturing
+3. Solstice GROVE - agricultural weeding & harvesting robot
+4. Solstice HOME (beta) - consumer home-assistance robot, launching Q1 2027
+
+KEY OFFICES
+-----------
+- Austin, TX (HQ + R&D)
+- Reno, NV (manufacturing plant)
+- Rotterdam, NL (EU distribution hub)
+- Bangalore, IN (software engineering)
+
+NOTE: This is entirely fictional test data generated for software
+testing purposes. Solstice Robotics Inc. is not a real company.
