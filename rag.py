@@ -6,6 +6,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.tools import tool
 from linkup import LinkupClient
+from deepseek_ocr import extract_image_file_text_for_tool
 from functools import lru_cache
 import requests, json, os
 from dotenv import load_dotenv
@@ -26,7 +27,7 @@ for document in os.listdir(upload_folder):
     path = os.path.join(upload_folder, document)
     os.remove(path)
 
-allowed_file_formats = [".txt", ".pdf"]
+allowed_file_formats = [".txt", ".pdf", ".jpeg", ".png"]
 
 embedding = OpenAIEmbeddings(
     model = "text-1024",
@@ -86,7 +87,6 @@ def add_uploaded_documents_to_vectorstore(uploaded_documents_list):
     temp = [] 
 
     for document in uploaded_documents_list:
-        print(type(document))
         path = os.path.join(upload_folder, document.filename)
         document.save(path)
         document_name = document.filename
@@ -95,9 +95,14 @@ def add_uploaded_documents_to_vectorstore(uploaded_documents_list):
         match ending:
             case "txt":
                 loader = TextLoader(path, encoding = "utf-8")
+                temp.extend(loader.load())
             case "pdf":
-                loader = PyPDFLoader(path)
-        temp.extend(loader.load())
+                loader = PyPDFLoader(path, encoding = "utf-8")
+                temp.extend(loader.load())
+            case "jpeg" | "png":
+                text = extract_image_file_text_for_tool(document)
+                doc = Document(page_content=text)
+                temp.append(doc) 
 
     chunks = text_splitter.split_documents(temp)
     upload_vectordb.add_documents(documents = chunks)

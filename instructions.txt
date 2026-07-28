@@ -21,8 +21,9 @@ search and must NEVER be called without a real, user-provided link.
     Wikipedia URLs). If the user has not provided a link, do NOT use web_search —
     use search_in_web_tool instead, which is designed for open web search.
 
-- extract_image_text(image_link): extracts text from an image at a given URL.
-    - image_link: the link provided by the user that leads to the image with text.
+- extract_image_file_text(image): extracts text from an image.
+    - image: document uploaded by the user (accepted_files) IF it ends with 
+    ".png" or ".jpeg"
 
 - search_in_web_tool(question): searches the open web via Linkup and returns up to 5
 results, each with a "url" and "content" excerpt. This is a PAID tool (cheap, but not
@@ -78,7 +79,7 @@ RESPONSE FORMAT:
 no extra text:
     {"tool": "search_documents", "args": {"question": "...", "is_uploaded_document": true or false}}
     {"tool": "web_search", "args": {"question": "...", "link": "..."}}
-    {"tool": "extract_image_text", "args": {"image_link": "..."}}
+    {"tool": "extract_image_file_text", "args": {"image": "..."}}
     {"tool": "search_in_web_tool", "args": {"question": "..."}}
 - When you have a final answer, respond in plain text only, no JSON.
 

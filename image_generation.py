@@ -3,7 +3,7 @@ import base64
 import os
 import random
 import string
-from deepseek_ocr import extract_image_text
+from deepseek_ocr import extract_image_file_text
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -16,7 +16,6 @@ def get_image(question, files=None):
         context = extract_image_text(files)
         question = f"Context: {context}, Question: {question}"
 
-    print(question)
     payload = {
         "model": "text-to-image",
         "prompt": f"{question}",
@@ -39,3 +38,4 @@ def get_image(question, files=None):
         return base64_string
     except (requests.RequestException, KeyError) as e:
         print(f"Request failed: {e}\nBody: {resp.text if 'resp' in locals() else ''}")
+        return(f"Request failed: {e}\nBody: {resp.text if 'resp' in locals() else ''}")

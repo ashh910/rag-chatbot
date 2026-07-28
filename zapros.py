@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, Request # RequestEntityTooLarge
+from flask import Flask, render_template, request, jsonify, Request #, RequestEntityTooLarge
 from agent_invoking import agent_response
 from manual_agent_invoking import manual_agent_response, kazllm_history, alemllm_history
 from rag import (is_allowed_file_format, add_uploaded_documents_to_vectorstore)
@@ -110,17 +110,17 @@ def chat():
         is_file_uploaded = True
 
         try:
-            if manual_agent:
+            if response_type == "image":
+                reply = get_image(question, accepted_files)
+            elif manual_agent:
                 reply = manual_agent_response(api_key, model_choice, question, accepted_files)
             else:
-                if image_generating:
-                    reply = get_image(question, accepted_files)
-                else:
-                    reply = agent_response(api_key, model_choice, question, accepted_files)
+                reply = agent_response(api_key, model_choice, question, accepted_files)
         except Exception as e:
             reply = str(e)
 
         return jsonify({"type": response_type, "reply": reply, "file_status": file_status})
+
     else:
         try:
             if response_type == "image":
